@@ -45,7 +45,7 @@ int getInput(){
 };
 int main(int argc, const char * argv[]) {
     
-    printf("Hello, World! hey kendall is here\n");
+    printf("Hello, World! hey Ahmed is here\n");
     
     if(getInput()){                                                 //Try the getInput, see if it works
         printf("back from getInput, it worked!\n");
