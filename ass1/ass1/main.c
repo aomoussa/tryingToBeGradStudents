@@ -45,13 +45,13 @@ int getInput(){
 };
 int main(int argc, const char * argv[]) {
     
-    printf("Hello, World!\n");
+    printf("Hello, World! hey kendall is here\n");
     
     if(getInput()){                                                 //Try the getInput, see if it works
         printf("back from getInput, it worked!\n");
     }
     else{
-        printf("someone fucked up\n");
+        printf("someone messed up\n");
     }
     
     return 0;
