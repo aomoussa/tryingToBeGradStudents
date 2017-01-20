@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 
+
+
 int parseLine(char* line){
     char* everything[10];
     char* element;
@@ -46,6 +48,7 @@ int getInput(){
 int main(int argc, const char * argv[]) {
     
     printf("Hello, World! hey Ahmed is here\n");
+    
     
     if(getInput()){                                                 //Try the getInput, see if it works
         printf("back from getInput, it worked!\n");
