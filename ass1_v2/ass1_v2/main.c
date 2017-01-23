@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 typedef struct{
     char type;
     int priority;
@@ -157,19 +158,67 @@ Task ** getInput(){
 
  
 }
-void periodicTask(Task ** periodicTask){
-    {
-        < local variables >
-        initialization() and wait_for_activation();
-        while (condition) {
-            <task body>
-            wait_for_period();
-        }
-    }
 
+void compute(int x){
+    
+    int i, j=0;
+    for (i = 0; i < x; i++)
+    {
+        j = j + i;
+    }
+    printf("compute\n");
+    
 }
 
-void aperiodicTask(Task ** aperiodicTask){
+void periodicTask(Task * periodicTask){
+
+    //INIT
+    //WAIT FOR ACTIVATION
+    printf("Periodic Task\n");
+    printf("%c\n", periodicTask->type);
+    int i = 0;
+    while(periodicTask->body[i] != NULL){
+        if(atoi(periodicTask->body[i])){
+            compute(atoi(periodicTask->body[i]));
+            printf("%d\n", atoi(periodicTask->body[i]));
+        }
+        else{
+            char mutexChar;
+            int mutexNumber;
+            if(periodicTask->body[i][0] == 'L'){
+                mutexChar = periodicTask->body[i][1];
+                mutexNumber = atoi(&mutexChar);
+                printf("%d\n", mutexNumber);
+                //Lock the correct mutex
+                //LockMutex(mutexArray[mutexNumber])
+                
+            }
+            else if(periodicTask->body[i][0] == 'U'){
+                mutexChar = periodicTask->body[i][1];
+                mutexNumber = atoi(&mutexChar);
+                printf("%d\n", mutexNumber);
+                //unlock the correct mutex
+                //UnlockMutex(mutexArray[mutexNumber])
+            }
+        }
+        i++;
+        //WAIT FOR PERIOD
+        //something with nano_sleep
+    }
+    //not sure what wait for activation is
+    
+    
+/*
+    < local variables >
+    initialization() and wait_for_activation();
+    while (condition) {
+        <task body>
+        wait_for_period();
+    }
+*/
+}
+
+void aperiodicTask(Task * aperiodicTask){
 /*
     < local variables >
     Initialization() and wait_for_activation();
@@ -179,21 +228,9 @@ void aperiodicTask(Task ** aperiodicTask){
         wait_for_event();
     }
 */
-    
 }
 
-void compute(int x){
-/*    
 
-    < local variables >
-    Initialization() and wait_for_activation();
-    wait_for_event();
-    while (condition) {
-        <task body>
-        wait_for_event();
-    }
-*/
-}
 
 int main(int argc, const char * argv[]) {
     
@@ -210,31 +247,48 @@ int main(int argc, const char * argv[]) {
         printf("\tEvent: %d\n", taskList[0]->event);
         printf("\tPeriod: %d\n", taskList[0]->period);
         printf("\tBody: \n");
+        
         int i = 0;
         while(taskList[0]->body[i] != NULL){
             printf("\t\t%s\n", taskList[0]->body[i]);
             i++;
         }
+        
         printf("Task 2: \n");
         printf("\tType: %c\n", taskList[1]->type);
         printf("\tPriority: %d\n", taskList[1]->priority);
         printf("\tEvent: %d\n", taskList[1]->event);
         printf("\tPeriod: %d\n", taskList[1]->period);
         printf("\tBody: \n");
+        
         int j = 0;
         while(taskList[1]->body[j] != NULL){
             printf("\t\t%s\n", taskList[1]->body[j]);
             j++;
         }
         
+        printf("PeriodIC Task\n");
+        periodicTask(taskList[0]);
 
-        
     }
     else{
         printf("someone messed up\n");
     }
     
     //need to run tasks based on p or a in their own thread.... with all 10 mutexes
+    //probably in a loop, for all tasks
+        //do we need to change the attributes before we create the thread?
+            //probably
+    //so...
+    //while(size of tasks)
+        //init attribute
+        //task[i]-> set priority
+        //create_thread()
+        //next task
+    
+    
+    //while(size of tasks)
+        //join threads
     
     
     return 0;
