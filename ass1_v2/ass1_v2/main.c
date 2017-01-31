@@ -23,25 +23,28 @@ Task * parseLine(char* line, Task * taskArray){
     
     char* tempBody[200];
     char* element;
+    char temp = ' ';
+    
+    taskArray = (Task *)malloc(sizeof(Task));
     
     printf ("Splitting line \"%s\" into elements:\n",line);
     
     element = strtok(line," ");
-    taskArray->type = *element;
-    
-    printf("The type is:%c\n", taskArray->type);
+    printf("Element is:%s\n", element);
+    taskArray->type = element[0];
+   	printf("The type is:%c\n", taskArray->type);
     
     if(taskArray->type == 'P'){
         //task is periodic
         printf("This task is periodic.\n");
-
+        
         element = strtok (NULL, " ");
         taskArray->priority = atoi(element);
         printf("The priority is:%d\n", taskArray->priority);
         
         taskArray->event = -1;
         printf("The event is:%d\n", taskArray->event);
-
+        
         
         element = strtok (NULL, " ");
         taskArray->period = atoi(element);
@@ -65,7 +68,7 @@ Task * parseLine(char* line, Task * taskArray){
                 strcpy(taskArray->body[j], (const char *)tempBody[j]);
             }
         }
-
+        
     }
     else if(taskArray->type == 'A'){
         //task if aperiodic
@@ -109,43 +112,43 @@ Task * parseLine(char* line, Task * taskArray){
 }
 
 
-Task ** getInput(){
+Task ** getInputFromFile(FILE* filePointer){
+    
     
     //read the first line
     //determine how many tasks there will be
     //determine the entire time for all tasks
     //read in for the number of lines required (aka the number of taks)
     //store their information inside of the array of structs
-
-    char* input;
-    size_t numOfBytes = 1;
+    
+    char * input;
+    size_t numOfBytes = 0;
     int numTasks = 0;
     int totalTaskTime = 0;
     Task ** taskArray;
     
-    
-    if(getline(&input, &numOfBytes, stdin)){
-        printf("The input was correct.\n");
+    if(getline(&input, &numOfBytes, filePointer)){
+        printf("The input was correct!.\n");
         
         numTasks = atoi(strtok(input," ")); //get the number of tasks
         totalTaskTime = atoi(strtok (NULL, " "));   //get the total task time
+        printf("numTasks - %d\n", numTasks);
+        printf("taskTime - %d\n", totalTaskTime);
         
-        int i;
-        for(i = 0; i < numTasks; i++){
-            taskArray[i] = malloc(sizeof(Task));
-        }
+        taskArray = (Task **)malloc(numTasks*sizeof(Task *));
         
         //while there is still input, get the next line(s)
         int taskLineCount = 0;
         while(taskLineCount < numTasks){
-            if(getline(&input, &numOfBytes, stdin)){
+            if(getline(&input, &numOfBytes, filePointer)){
                 printf("The input was correct.\n");
+                printf("allocated");
                 taskArray[taskLineCount] = parseLine(input, taskArray[taskLineCount]);
                 printf("This is the type of the task (Pass by reference): %c\n", taskArray[taskLineCount]->type);
                 printf("This is the event of the task (Pass by reference): %d\n", taskArray[taskLineCount]->event);
                 printf("This is the priority of the task (Pass by reference): %d\n", taskArray[taskLineCount]->priority);
                 printf("This is the period of the task (Pass by reference): %d\n", taskArray[taskLineCount]->period);
-
+                
                 taskLineCount++;
             }
         }
@@ -155,8 +158,8 @@ Task ** getInput(){
         printf("The input was incorrect.\n");
     }
     return NULL;
-
- 
+    
+    
 }
 
 void compute(int x){
@@ -167,11 +170,10 @@ void compute(int x){
         j = j + i;
     }
     printf("compute\n");
-    
 }
 
 void periodicTask(Task * periodicTask){
-
+    
     //INIT
     //WAIT FOR ACTIVATION
     printf("Periodic Task\n");
@@ -208,36 +210,45 @@ void periodicTask(Task * periodicTask){
     //not sure what wait for activation is
     
     
-/*
-    < local variables >
-    initialization() and wait_for_activation();
-    while (condition) {
-        <task body>
-        wait_for_period();
-    }
-*/
+    /*
+     < local variables >
+     initialization() and wait_for_activation();
+     while (condition) {
+     <task body>
+     wait_for_period();
+     }
+     */
 }
 
 void aperiodicTask(Task * aperiodicTask){
-/*
-    < local variables >
-    Initialization() and wait_for_activation();
-    wait_for_event();
-    while (condition) {
-        <task body>
-        wait_for_event();
-    }
-*/
+    /*
+     < local variables >
+     Initialization() and wait_for_activation();
+     wait_for_event();
+     while (condition) {
+     <task body>
+     wait_for_event();
+     }
+     */
 }
 
 
 
 int main(int argc, const char * argv[]) {
     
+    FILE *filePointer;
+    
+    filePointer = fopen("test.txt", "r");
+    if(filePointer == NULL){
+        printf("couldn't open file");
+        return -1;
+    }
+    //fclose(filePointer);
     printf("Hello, World! hey Ahmed is here\n");
     Task ** taskList;
     
-    taskList = getInput();
+    
+    taskList = getInputFromFile(filePointer);
     if(taskList != NULL){
         printf("back from getInput, it worked!\n");
         printf("These are the tasks: \n");
@@ -269,7 +280,7 @@ int main(int argc, const char * argv[]) {
         
         printf("PeriodIC Task\n");
         periodicTask(taskList[0]);
-
+        
     }
     else{
         printf("someone messed up\n");
@@ -277,18 +288,18 @@ int main(int argc, const char * argv[]) {
     
     //need to run tasks based on p or a in their own thread.... with all 10 mutexes
     //probably in a loop, for all tasks
-        //do we need to change the attributes before we create the thread?
-            //probably
+    //do we need to change the attributes before we create the thread?
+    //probably
     //so...
-    //while(size of tasks)
-        //init attribute
-        //task[i]-> set priority
-        //create_thread()
-        //next task
+    //while(size of tasks && period for entire program)
+    //init attribute
+    //task[i]-> set priority
+    //create_thread()
+    //next task
     
     
     //while(size of tasks)
-        //join threads
+    //join threads
     
     
     return 0;

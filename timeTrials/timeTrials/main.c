@@ -1,60 +1,49 @@
-//
-//  main.c
-//  timeTrials
-//
-//  Created by Ahmed Moussa on 1/25/17.
-//  Copyright © 2017 Ahmed Moussa. All rights reserved.
-//
-
-#include <time.h>
-#include <sys/time.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
-static void ms2ts(struct timespec *ts, unsigned long ms)
-{
-    ts->tv_sec = ms / 1000;
-    ts->tv_nsec = (ms % 1000) * 1000000;
+
+int compute(int x){
+    printf("in compute");
+    int i, j=0;
+    for (i = 0; i < x; i++)
+    {
+        j = j + i;
+    }
+    return 0;
 }
-
-static void print_ts(unsigned long ms)
-{
-    struct timespec ts;
-    ms2ts(&ts, ms);
-    printf("%lu milliseconds is %ld seconds and %ld nanoseconds.\n",
-           ms, ts.tv_sec, ts.tv_nsec);
-}
-
 int main()
 {
-    print_ts(1000);
-    print_ts(2500);
-    print_ts(4321);
-    struct timespec time;
-    struct timeval t;
-    gettimeofday(&t, NULL);
+    clock_na
+    //clock_nan
+    int period = 1000;
+    int periodInNS = period*1000000;
+    struct timespec tim, tim2, diff;
+    //tim.tv_sec = 0;
+    //tim.tv_nsec = period*1000000; //period is in ms -> ns
     
-    time.tv_sec = t.tv_sec;
+    printf("yo what the hell is going on?");
     
-    
-    printf("%lu\n", time.tv_sec);
-    
-    
-    
-    
-    
-    struct timeval tv;
-    time_t nowtime;
-    struct tm *nowtm;
-    char tmbuf[64], buf[64];
-    
-    gettimeofday(&tv, NULL);
-    nowtime = tv.tv_sec;
-    nowtm = localtime(&nowtime);
-    strftime(tmbuf, sizeof tmbuf, "%Y-%m-%d %H:%M:%S", nowtm);
-    snprintf(buf, sizeof buf, "%s.%06d", tmbuf, tv.tv_usec);
-    
-    printf("\n%s", tmbuf);
+    int x = 0;
+    while(1){
+        printf("while loop iteration %d", x++);
+        int clk_id = CLOCK_REALTIME;
+        clock_gettime(clk_id, &tim);
+        printf("this is tim %ld", tim.tv_nsec);
+        
+        compute(200);
+        
+        clock_gettime(clk_id, &tim2);//get the time and subtract from time 1
+        
+        if(tim2.tv_nsec < tim.tv_nsec + periodInNS){
+            diff.tv_nsec = (tim.tv_nsec + periodInNS) - tim2.tv_nsec;
+            if(nanosleep(&diff , NULL) < 0 ) //sleep for subtracted time (period - time1 - time2)
+            {
+                printf("Nano sleep system call failed \n");
+                return -1;
+            }
+        }
+    }
+    printf("Nano sleep successfull \n");
     
     return 0;
 }

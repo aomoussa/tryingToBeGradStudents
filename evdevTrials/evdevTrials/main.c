@@ -6,34 +6,50 @@
 //  Copyright © 2017 Ahmed Moussa. All rights reserved.
 //
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <linux/input.h>
+#include <string.h>
 #include <stdio.h>
-#include <libevdev.h>
-#include <libevdev-uinput.h>
 
-int main(int argc, char **argv)
+static const char *const evval[3] = {
+    "RELEASED",
+    "PRESSED ",
+    "REPEATED"
+};
+
+int main(void)
 {
-    int err;
-    struct libevdev *dev;
-    struct libevdev_uinput *uidev;
+    const char *dev = "/dev/input/by-path/platform-i8042-serio-0-event-kbd";
+    struct input_event ev;
+    ssize_t n;
+    int fd;
     
-    dev = libevdev_new();
-    libevdev_set_name(dev, "fake keyboard device");
-    
-    libevdev_enable_event_type(dev, EV_KEY);
-    libevdev_enable_event_code(dev, EV_KEY, KEY_A, NULL);
-    
-    err = libevdev_uinput_create_from_device(dev,
-                                             LIBEVDEV_UINPUT_OPEN_MANAGED,
-                                             &uidev);
-    
-    if (err != 0)
-        return err;
-    
-    libevdev_uinput_write_event(uidev, EV_KEY, KEY_A, 1);
-    libevdev_uinput_write_event(uidev, EV_SYN, SYN_REPORT, 0);
-    libevdev_uinput_write_event(uidev, EV_KEY, KEY_A, 0);
-    libevdev_uinput_write_event(uidev, EV_SYN, SYN_REPORT, 0);
-    
-    libevdev_uinput_destroy(uidev);
-    printf("Complete\n");
+    fd = open(dev, O_RDONLY);
+    if (fd == -1) {
+        printf(stderr, "Cannot open %s: %s.\n", dev, strerror(errno));
+        return EXIT_FAILURE;
+    }
+    while (1) {
+        n = read(fd, &ev, sizeof ev);
+        if (n == (ssize_t)-1) {
+            if (errno == EINTR)
+                continue;
+            else
+                break;
+        }
+        else if (n != sizeof(ev)) {
+            errno = EIO;
+            break;
+        }
+        
+        if (ev.type == EV_KEY && ev.value >= 0 && ev.value <= 2)
+            printf("%s 0x%04x (%d)\n", evval[ev.value], (int)ev.code, (int)ev.code);
+        
+    }
+    fflush(stdout);
+    fprintf(stderr, "%s.\n", strerror(errno));
+    return EXIT_FAILURE;
 }
