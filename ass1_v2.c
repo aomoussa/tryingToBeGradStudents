@@ -17,8 +17,12 @@
 #include <errno.h>
 #include <linux/input.h>
 
+pthread_mutex_t ready_mut = PTHREAD_MUTEX_INITIALIZER;//for ready pthreads count accessing
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER; //to signal when all threads are ready
 
 pthread_mutex_t mutexArray[10];
+
+int readyTasksCount;
 int numTasks;
 int totalTaskTime;
 int waitFlag;
@@ -232,10 +236,16 @@ void compute(int x){
 
 void* periodicTask(void * periodicTask){
 
+    /*
 	waitFlag = waitFlag - 1;
 	while(waitFlag != 0){
 		;
-	}
+	}*/
+    pthread_mutex_lock(&ready_mut);
+    readyTasksCount++;
+    pthread_cond_wait(&cond, &ready_mut);
+    pthread_mutex_unlock(&ready_mut);
+    
 
 	Task * newTask = (Task *)periodicTask;
     //INIT
@@ -305,10 +315,15 @@ void* periodicTask(void * periodicTask){
 
 void* aperiodicTask(void * aperiodicTask){
 
+    /*
 	waitFlag = waitFlag - 1;
 	while(waitFlag != 0){
 		;
-	}
+	}*/
+    pthread_mutex_lock(&ready_mut);
+    readyTasksCount++;
+    pthread_cond_wait(&cond, &ready_mut);
+    pthread_mutex_unlock(&ready_mut);
 
 	
 /*
@@ -422,9 +437,22 @@ int main(int argc, const char * argv[]) {
 			
 		}
 
+        //printf("before busy loop/n");
+        while(readyTasksCount != numTasks);//busy loop until all threads are ready
+        //printf("after busy loop but before broadcast\n");
+        pthread_cond_broadcast(&cond);//broadcast signal to start when after busy loop exits
+        //printf("after busy loop and broadcast\n");
+        //temporary sleep stuff until we figure out how to stop all tasks
+        struct timespec forsleep;
+        forsleep.tv_sec = 3;
+        forsleep.tv_nsec = 500;
+        nanosleep(&forsleep, NULL);
+
+        //we're not gonna be using join so might as well delete this
+        /*
 		for(i = 0; i < numTasks; i++){
 			pthread_join(threadID[i], NULL);
-		}
+		}*/
         printf("THE END!!!\n");
         //periodicTask(taskList[0]);
 
