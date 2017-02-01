@@ -20,6 +20,15 @@
 pthread_mutex_t ready_mut = PTHREAD_MUTEX_INITIALIZER;//for ready pthreads count accessing
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER; //to signal when all threads are ready
 
+pthread_cond_t condEvent[5];
+
+pthread_mutex_t event_mut[5];
+
+int readyTasksEvent[5];
+
+int numTasksEvent[5];
+
+
 pthread_mutex_t mutexArray[10];
 
 int readyTasksCount;
@@ -404,6 +413,13 @@ int main(int argc, const char * argv[]) {
 			//init mutex and set protocol to priority inheritance
 			pthread_mutex_init(&mutexArray[mutexCount], &piMutexAttr);
 		}
+        int e = 0;
+        for(e=0; e<5; e++){
+            numTasksEvent[e] = 0;
+            readyTasksEvent[e] = 0;
+            pthread_mutex_init(&event_mut[e], NULL);
+            condEvent[e] = PTHREAD_COND_INITIALIZER;
+        }
 		
 
 		pthread_attr_t kbdAttr;
@@ -431,6 +447,7 @@ int main(int argc, const char * argv[]) {
 				printf("PERIODIC THREAD %d CREATED\n", i);
 			}
 			else if(taskList[i]->type == 'A'){
+                numTasksEvent[taskList[i]->event - 1]++;
 				pthread_create(&threadID[i], &pthreadAttr, &aperiodicTask, (void *)taskList[i]);
 				printf("APERIODIC THREAD %d CREATED\n", i);
 			}
