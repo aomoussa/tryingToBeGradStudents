@@ -485,13 +485,19 @@ int main(int argc, const char * argv[]) {
             readyTasksEvent[e] = 0;
        }
 */
+        //setpriority(PRIO_PROCESS, 0, 99);
+        
+        //int policy = SCHED_FIFO;
 		pthread_attr_t kbdAttr;
 		struct sched_param kbdParam;
 		pthread_attr_init(&kbdAttr);
-		kbdParam.sched_priority = SCHED_FIFO;
+        kbdParam.sched_priority = 98;
+        
+        
 		pthread_attr_setschedparam(&kbdAttr, &kbdParam);
 		pthread_t id;
 
+        pthread_setschedparam(id, SCHED_FIFO, &kbdParam);
 		pthread_create(&id, &kbdAttr, &keyboardListen, (void *)NULL);
 		printf("PERIODIC THREAD CREATED\n");
 
@@ -499,13 +505,17 @@ int main(int argc, const char * argv[]) {
 		pthread_attr_t pthreadAttr;
     	struct sched_param pthreadParam;
 		pthread_attr_init(&pthreadAttr);
-    	pthreadParam.sched_priority = SCHED_FIFO;
-    	pthread_attr_setschedparam(&pthreadAttr, &pthreadParam);
+    	//pthreadParam.sched_param = SCHED_FIFO;
+        
 
 
 		//create mutiple threads
 		for(i = 0; i < numTasks; i++){
-			if(taskList[i]->type == 'P'){
+            printf("this guy's priority should at least print you know? %d\n", taskList[i]->priority);
+            pthreadParam.sched_priority = taskList[i]->priority;
+            pthread_attr_setschedparam(&pthreadAttr, &pthreadParam);
+            pthread_setschedparam(threadID[i], SCHED_FIFO, &pthreadParam);
+            if(taskList[i]->type == 'P'){
 				pthread_create(&threadID[i], &pthreadAttr, &periodicTask, (void *)taskList[i]);
 				printf("PERIODIC THREAD %d CREATED\n", i);
 			}
