@@ -1,3 +1,4 @@
+
 //  main.c
 //  ass1_v2
 //
@@ -19,6 +20,15 @@
 
 pthread_mutex_t ready_mut = PTHREAD_MUTEX_INITIALIZER;//for ready pthreads count accessing
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER; //to signal when all threads are ready
+
+pthread_cond_t condEvent[5] = {PTHREAD_COND_INITIALIZER,PTHREAD_COND_INITIALIZER,PTHREAD_COND_INITIALIZER,PTHREAD_COND_INITIALIZER,PTHREAD_COND_INITIALIZER};
+
+pthread_mutex_t event_mut[5] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
+
+int readyTasksEvent[5];
+
+int numTasksEvent[5];
+
 
 pthread_mutex_t mutexArray[10];
 
@@ -105,8 +115,8 @@ Task * parseLine(char* line, Task * taskArray){
         taskArray->event = atoi(element);
         printf("The event is:%d\n", taskArray->event);
         
-        element = strtok (NULL, " ");
-        taskArray->period = atoi(element);
+        //element = strtok (NULL, " ");
+        taskArray->period = 0;
         printf("The period is:%d\n", taskArray->period);
         
         //THIS PART ISNT VERY GOOD.......................
@@ -190,6 +200,21 @@ static const char *const evval[3] = {
     "REPEATED"
 };
 
+void triggerEvent(int eventID){
+    while(readyTasksEvent[eventID] != numTasksEvent[eventID]);//busy loop until all threads are ready
+    //printf("after busy loop but before broadcast\n");
+    pthread_cond_broadcast(&condEvent[eventID]);//broadcast signal to start when after busy loop exits
+    //printf("after busy loop and broadcast\n");
+    //temporary sleep stuff until we figure out how to stop all tasks
+    
+    printf("event number %d was triggered, i'm just gonna chill for a bit until we know wtf is going on\n", eventID);
+    //.struct timespec forsleep;
+    //forsleep.tv_sec = 3;
+    //forsleep.tv_nsec = 500;
+    //nanosleep(&forsleep, NULL);
+    
+}
+
 void * keyboardListen(void * ptr){
     const char *dev = "/dev/input/by-path/platform-i8042-serio-0-event-kbd";
     struct input_event ev;
@@ -215,6 +240,7 @@ void * keyboardListen(void * ptr){
     	}
 		if (ev.type == EV_KEY && ev.value >= 0 && ev.value <= 2)
 			if(ev.code == 2 || ev.code == 3 || ev.code == 4 || ev.code == 5 || ev.code == 6){
+                triggerEvent(ev.code - 2);
 				printf("%s 0x%04x (%d)\n", evval[ev.value], (int)ev.code, (int)ev.code);
 			}
     }
@@ -223,6 +249,7 @@ void * keyboardListen(void * ptr){
 	fprintf(stderr, "%s.\n", strerror(errno));
 	return NULL;
 }
+
 
 void compute(int x){
     
@@ -315,17 +342,66 @@ void* periodicTask(void * periodicTask){
 
 void* aperiodicTask(void * aperiodicTask){
 
+    printf("APERIODIC\n");
     /*
 	waitFlag = waitFlag - 1;
 	while(waitFlag != 0){
 		;
 	}*/
+
     pthread_mutex_lock(&ready_mut);
     readyTasksCount++;
     pthread_cond_wait(&cond, &ready_mut);
     pthread_mutex_unlock(&ready_mut);
 
+    printf("APERIODIC2\n");
+
+    Task * newTask = (Task *)aperiodicTask;
+
+    int eventID = newTask->event - 1;
+    pthread_mutex_lock(&event_mut[eventID]);
+    readyTasksEvent[eventID]++;
+    pthread_cond_wait(&condEvent[eventID], &event_mut[eventID]);
+    pthread_mutex_unlock(&event_mut[eventID]);
+    
+	printf("here");
+    //-------------- ----------- --------- pasted from periodic task ----------- ----------- begins
 	
+    printf("%c\n", newTask->type);
+    int i = 0;
+    
+    while(i < newTask->bodyLength){
+        if(atoi(newTask->body[i])){
+            compute(atoi(newTask->body[i]));
+            printf("%d\n", atoi(newTask->body[i]));
+        }
+        else{
+            char mutexChar;
+            int mutexNumber;
+            if(newTask->body[i][0] == 'L'){
+                mutexChar = newTask->body[i][1];
+                mutexNumber = atoi(&mutexChar);
+                printf("%d\n", mutexNumber);
+                //Lock the correct mutex
+                pthread_mutex_lock(&mutexArray[mutexNumber-1]);
+                //LockMutex(mutexArray[mutexNumber])
+                
+            }
+            else if(newTask->body[i][0] == 'U'){
+                mutexChar = newTask->body[i][1];
+                mutexNumber = atoi(&mutexChar);
+                printf("%d\n", mutexNumber);
+                //unlock the correct mutex
+                pthread_mutex_unlock(&mutexArray[mutexNumber-1]);
+                //UnlockMutex(mutexArray[mutexNumber])
+            }
+        }
+
+        i++;
+    }
+    //not sure what wait for activation is
+    return NULL;
+//-------------- ----------- --------- pasted from periodic task ----------- ----------- ends
 /*
     < local variables >
     Initialization() and wait_for_activation();
@@ -335,7 +411,6 @@ void* aperiodicTask(void * aperiodicTask){
         wait_for_event();
     }
 */
-	return NULL;
 }
 
 
@@ -404,8 +479,12 @@ int main(int argc, const char * argv[]) {
 			//init mutex and set protocol to priority inheritance
 			pthread_mutex_init(&mutexArray[mutexCount], &piMutexAttr);
 		}
-		
-
+        int e = 0;
+    /*    for(e=0; e<5; e++){
+            numTasksEvent[e] = 0;
+            readyTasksEvent[e] = 0;
+       }
+*/
 		pthread_attr_t kbdAttr;
 		struct sched_param kbdParam;
 		pthread_attr_init(&kbdAttr);
@@ -431,6 +510,7 @@ int main(int argc, const char * argv[]) {
 				printf("PERIODIC THREAD %d CREATED\n", i);
 			}
 			else if(taskList[i]->type == 'A'){
+                numTasksEvent[taskList[i]->event - 1]++;
 				pthread_create(&threadID[i], &pthreadAttr, &aperiodicTask, (void *)taskList[i]);
 				printf("APERIODIC THREAD %d CREATED\n", i);
 			}
@@ -443,16 +523,20 @@ int main(int argc, const char * argv[]) {
         pthread_cond_broadcast(&cond);//broadcast signal to start when after busy loop exits
         //printf("after busy loop and broadcast\n");
         //temporary sleep stuff until we figure out how to stop all tasks
-        struct timespec forsleep;
-        forsleep.tv_sec = 3;
-        forsleep.tv_nsec = 500;
-        nanosleep(&forsleep, NULL);
+        //struct timespec forsleep;
+        //forsleep.tv_sec = 5;
+        //forsleep.tv_nsec = 500;
+        //nanosleep(&forsleep, NULL);
+
+		//running = 1
+
+		//broadcast signal to end
 
         //we're not gonna be using join so might as well delete this
-        /*
+        
 		for(i = 0; i < numTasks; i++){
 			pthread_join(threadID[i], NULL);
-		}*/
+		}
         printf("THE END!!!\n");
         //periodicTask(taskList[0]);
 
