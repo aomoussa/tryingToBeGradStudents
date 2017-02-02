@@ -16,6 +16,9 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <linux/input.h>
+#include <signal.h>
+#include <errno.h>
+#include <sys/time.h>
 
 //global mutex to signal when all threads have been created (barrier synchronization
 pthread_mutex_t ready_mut = PTHREAD_MUTEX_INITIALIZER;//for ready pthreads count accessing
@@ -53,6 +56,18 @@ typedef struct{
     char ** body;
 }Task;
 
+static void catcher(int signo){
+    //switch (signo) {
+    //   case SIGTSTP:
+    //      printf("TSTP\n");
+    //    fflush(stdout);
+    //
+    // pthread_kill(one, 0);
+    //break;
+    //}
+    
+    printf("in the signal handler\n");
+}
 
 //function that parses each line and puts the line information into the struct
 Task * parseLine(char* line, Task * taskArray){
@@ -275,9 +290,13 @@ void* periodicTask(void * periodicTask){
     		next.tv_sec++;						//increase seconds
 		}
 
-		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, 0);		//determine if sleep is necessary, if it is, sleep
-
-		clock_gettime(CLOCK_MONOTONIC, &next);
+        int ns = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, 0);
+		printf("this is what ns returns: %d\n", ns);		//determine if sleep is necessary, if it is, sleep
+        if(ns != 0){
+            printf("this thread recieved the timer signal and will safely exit\n");
+            break;
+        }
+        clock_gettime(CLOCK_MONOTONIC, &next);
 		printf("next after sleep %lu\n", next.tv_nsec);
 
         i++;	//next task
@@ -473,8 +492,31 @@ int main(int argc, const char * argv[]) {
 		//broadcast that all threads have been created
         pthread_cond_broadcast(&cond);		//broadcast signal to start when after busy loop exits
 
-		nanosleep(&period, NULL);		//determine if sleep is necessary, if it is, sleep
 		
+        
+        
+        struct sigaction newAction, oldAction;
+        newAction.sa_handler = catcher;
+        sigemptyset(&newAction.sa_mask);
+        
+        
+        
+        sigaction(SIGALRM, NULL, &oldAction);
+        if(oldAction.sa_handler != SIG_IGN)
+            sigaction(SIGALRM, &newAction, NULL);
+        sigaction(SIGTERM, NULL, &oldAction);
+        
+        //for setittimer
+        struct itimerval periodForTimer;
+        periodForTimer.it_value.tv_sec = period.tv_sec;
+        periodForTimer.it_value.tv_usec = period.tv_nsec * 1000000;
+        
+        if (setitimer(ITIMER_REAL, &periodForTimer, NULL) == -1) {
+            perror("error calling setitimer()");
+            exit(1);
+        }
+        
+        nanosleep(&period, NULL);		//determine if sleep is necessary, if it is, sleep
 		//THIS IS WHERE WE NEED TO SIGNAL
 
 		//printf("after busy loop and broadcast\n");

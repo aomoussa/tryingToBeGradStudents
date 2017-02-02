@@ -9,13 +9,44 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <sched.h>
+#include<signal.h>
+#include<unistd.h>
+#include <errno.h>
+#include <sys/time.h>
+
+pthread_t one;
+pthread_t two;
+
 
 pthread_mutex_t mutex1;
 
 int what = 0;
 
+
 void * func1(){
-    for(int i = 0; i < 100; i++){
+    
+    //pSigHandler(SIGTSTP);
+    
+    struct timespec period;
+    //printf("before sleep and signal\n");
+    period.tv_sec = 1;
+    period.tv_nsec = 500;
+    int pretendvar = 0;
+    
+    int sig, err;
+    sigset_t newmask, set;
+    sigemptyset(&newmask);
+    sigaddset(&newmask, SIGALRM);
+    printf("Inside sig_func\n");
+    
+    int i = 0;
+    for(i=0; i < 999999999999100; i++){
+        //pretendvar =
+        nanosleep(&period, NULL);
+        /*if(pretendvar == EINTR || pretendvar == SIGALRM){
+            pthread_exit(NULL);
+            printf("i mean it went in your if statement?");
+        }*/
         //what++;
         //printf("ONE loop number: %d and what is: %d\n", i, what);
         
@@ -27,14 +58,32 @@ void * func1(){
         //}
         //pthread_mutex_unlock(&mutex1);
         
+        
+            printf("waiting for signal \n");
+            err= sigwait(&newmask, &sig);
+            if (err ||  sig != SIGALRM){
+                printf("expected signal not genearated \n");
+                abort();
+            }
+            else{
+                printf("Alarm generated : OK\n");
+            }
+        
     }
     return NULL;
 };
 
 void * func2(){
     //pthread_mutex_lock(&mutex1);
-    for(int i = 0; i < 100; i++){
-        
+    struct timespec period;
+    //printf("before sleep and signal\n");
+    period.tv_sec = 1;
+    period.tv_nsec = 500;
+    
+    int i = 0;
+    
+    for(i = 0; i < 99999999999100; i++){
+        nanosleep(&period, NULL);
         what++;
         printf("TWO loop number: %d and what is: %d\n", i, what);
         
@@ -44,20 +93,32 @@ void * func2(){
 };
 
 
+static void catcher(int signo){
+    //switch (signo) {
+     //   case SIGTSTP:
+      //      printf("TSTP\n");
+        //    fflush(stdout);
+         //
+           // pthread_kill(one, 0);
+            //break;
+    //}
+    
+    printf("in the signal handler\n");
+}
+
 int main(int argc, const char * argv[]) {
     int x;
     pthread_attr_t attr1;
     struct sched_param param1;
     pthread_attr_t attr2;
     struct sched_param param2;
-    pthread_t one;
-    pthread_t two;
+    
     
     x = pthread_attr_init(&attr1);
     x = pthread_attr_init(&attr2);
     
     param1.sched_priority = 99;
-    param2.sched_priority = 99;
+    param2.sched_priority = 0;
     
     x = pthread_attr_setschedparam(&attr1, &param1);
     x = pthread_attr_setschedparam(&attr2, &param2);
@@ -77,8 +138,33 @@ int main(int argc, const char * argv[]) {
     
 
     
-    pthread_join(one, NULL);
-    pthread_join(two, NULL);
+    
+    //pthread_join(one, NULL);
+    //pthread_join(two, NULL);
+    
+    
+    struct timespec period;
+    printf("before sleep and signal\n");
+    period.tv_sec = 5;
+    period.tv_nsec = 500;
+    
+    nanosleep(&period, NULL);
+    
+    printf("after 1st sleep but before signal\n");
+    
+    struct sigaction sigAction;
+    sigAction.sa_handler = catcher;
+    sigaction(SIGALRM, &sigAction, NULL);
+    alarm(3);
+    setitt
+    //pSigHandler(SIGTSTP);
+    printf("after signal but before 2nd sleep\n");
+    
+    nanosleep(&period, NULL);
+    
+    printf("after sleep and signal\n");
+    
+    while(1);
     
     printf("Hello, World!\n");
     return 0;

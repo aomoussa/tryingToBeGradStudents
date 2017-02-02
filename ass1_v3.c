@@ -273,6 +273,7 @@ void* periodicTask(void * periodicTask){
     pthread_cond_wait(&cond, &ready_mut);
     pthread_mutex_unlock(&ready_mut);
     
+    
 
 	Task * newTask = (Task *)periodicTask;
     //INIT
@@ -321,7 +322,7 @@ void* periodicTask(void * periodicTask){
     		next.tv_sec++;						//increase seconds
 		}
 
-		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, 0);
+		printf(clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, 0));
 
 		clock_gettime(CLOCK_MONOTONIC, &next);
 		printf("next after sleep %lu\n", next.tv_nsec);
@@ -541,6 +542,8 @@ int main(int argc, const char * argv[]) {
 		//running = 1
 
 		//broadcast signal to end
+        
+        alarm(perod.tv_sec);
 
         //we're not gonna be using join so might as well delete this
         
