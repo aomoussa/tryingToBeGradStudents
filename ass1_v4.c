@@ -22,6 +22,8 @@
 
 //global mutex to signal when all threads have been created (barrier synchronization
 pthread_mutex_t ready_mut = PTHREAD_MUTEX_INITIALIZER;//for ready pthreads count accessing
+pthread_mutex_t running_mut = PTHREAD_MUTEX_INITIALIZER;//for running pthreads count accessing
+//pthread_mutex_t readyToExit_mut = PTHREAD_MUTEX_INITIALIZER;//for readyToExit pthreads count accessing(might not need this
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER; //to signal when all threads are ready
 
 //pthread contidion event
@@ -43,7 +45,11 @@ pthread_mutex_t mutexArray[10];
 int readyTasksCount;
 int numTasks;
 int totalTaskTime;
-int waitFlag;
+
+int flagToTerminate;
+
+int runningTasksCount;
+//int tasksReadyToExitCount; //might not need this
 
 
 //struct to hold task data
@@ -57,16 +63,7 @@ typedef struct{
 }Task;
 
 static void catcher(int signo){
-    //switch (signo) {
-    //   case SIGTSTP:
-    //      printf("TSTP\n");
-    //    fflush(stdout);
-    //
-    // pthread_kill(one, 0);
-    //break;
-    //}
-    
-    printf("in the signal handler\n");
+    printf("in the signal handler \"catcher()\"\n");
 }
 
 //function that parses each line and puts the line information into the struct
@@ -217,7 +214,7 @@ void * keyboardListen(void * ptr){
             errno = EIO;
             break;
     	}
-		if (ev.type == EV_KEY && ev.value >= 0 && ev.value <= 2)
+		if (ev.type == EV_KEY && ev.value == 0 )
 			if(ev.code == 2 || ev.code == 3 || ev.code == 4 || ev.code == 5 || ev.code == 6){
                 triggerEvent(ev.code - 2);
 				printf("%s 0x%04x (%d)\n", evval[ev.value], (int)ev.code, (int)ev.code);
@@ -251,7 +248,18 @@ void* periodicTask(void * periodicTask){
     pthread_cond_wait(&cond, &ready_mut);
     pthread_mutex_unlock(&ready_mut);
     
-
+    //running tasks keeping count
+    pthread_mutex_lock(&running_mut);
+    int thisTaskID = runningTasksCount++;
+    pthread_mutex_unlock(&running_mut);
+    
+    //-------- --------- --------- initiations necessary for masking/unmasking -------- -------- begin
+    sigset_t setOfSigs;
+    sigemptyset(&setOfSigs);
+    sigaddset(&setOfSigs, SIGTERM);
+    sigaddset(&setOfSigs, SIGALRM);
+    //-------- --------- --------- initiations necessary for masking/unmasking -------- -------- end
+    
 	Task * newTask = (Task *)periodicTask;
 
 	struct timespec next, period;
@@ -260,10 +268,14 @@ void* periodicTask(void * periodicTask){
 	//run the task
     int i = 0;
     while(i < newTask->bodyLength){
+        pthread_sigmask(SIG_BLOCK, &setOfSigs, NULL );
+        if(flagToTerminate == 1){
+            break;
+        }
 		clock_gettime(CLOCK_MONOTONIC, &next); 	//get the initital time
         if(atoi(newTask->body[i])){				//if the next task is an iteration
             compute(atoi(newTask->body[i]));		//call the iteration function
-            printf("computed %d iterations\n", atoi(newTask->body[i]));
+            printf("task %d computed %d iterations\n",thisTaskID,  atoi(newTask->body[i]));
         }
         else{									//the task is a mutex
             char mutexChar;
@@ -272,13 +284,13 @@ void* periodicTask(void * periodicTask){
                 mutexChar = newTask->body[i][1];
                 mutexNumber = atoi(&mutexChar);
 				pthread_mutex_lock(&mutexArray[mutexNumber-1]);		 //Lock the correct mutex
-				printf("mutex %d locked\n", mutexNumber);
+				printf("mutex %d locked in periodic task %d\n", mutexNumber, thisTaskID);
             }
             else if(newTask->body[i][0] == 'U'){		//unlock the mutex
                 mutexChar = newTask->body[i][1];
                 mutexNumber = atoi(&mutexChar);
 				pthread_mutex_unlock(&mutexArray[mutexNumber-1]);           //unlock the correct mutex
-				printf("mutex %d unlocked\n", mutexNumber);
+				printf("mutex %d unlocked in periodic task %d\n", mutexNumber, thisTaskID);
             }
         }
 
@@ -290,20 +302,30 @@ void* periodicTask(void * periodicTask){
     		next.tv_sec++;						//increase seconds
 		}
 
+        pthread_sigmask(SIG_UNBLOCK, &setOfSigs, NULL );
         int ns = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, 0);
-		printf("this is what ns returns: %d\n", ns);		//determine if sleep is necessary, if it is, sleep
-        if(ns != 0){
-            printf("this thread recieved the timer signal and will safely exit\n");
+		printf("in task %d this is what nanosleep returns: %d\n",thisTaskID, ns);		//determine if sleep is necessary, if it is, sleep
+        pthread_sigmask(SIG_BLOCK, &setOfSigs, NULL );
+        
+        if(flagToTerminate == 1){
             break;
         }
+        /*if(ns != 0){
+            printf("this thread recieved the timer signal and will safely exit\n");
+            break;
+        }*/
         clock_gettime(CLOCK_MONOTONIC, &next);
 		printf("next after sleep %lu\n", next.tv_nsec);
 
         i++;	//next task
     }
 
-	printf("periodic thread made it to exit\n");
-	pthread_exit(NULL);
+    //running tasks keeping count
+    pthread_mutex_lock(&running_mut);
+    printf("periodic thread #%d made it to exit\n", runningTasksCount);
+    runningTasksCount--;
+	//pthread_exit(NULL);
+    pthread_mutex_unlock(&running_mut);
 
     return NULL;
 
@@ -328,6 +350,12 @@ void* aperiodicTask(void * aperiodicTask){
     readyTasksEvent[eventID]++;
     pthread_cond_wait(&condEvent[eventID], &event_mut[eventID]);
     pthread_mutex_unlock(&event_mut[eventID]);
+    
+    //running threads keeping count
+    pthread_mutex_lock(&running_mut);
+    runningTasksCount++;
+    pthread_mutex_unlock(&running_mut);
+
     
 	//run the task
     int i = 0;
@@ -357,8 +385,13 @@ void* aperiodicTask(void * aperiodicTask){
         i++;		//next task
     }
 
-	printf("aperiodic thread made it to exit\n");
-	pthread_exit(NULL);
+    //running threads keeping count
+    pthread_mutex_lock(&running_mut);
+    runningTasksCount--;
+    printf("aperiodic thread made it to exit\n");
+    pthread_exit(NULL);
+    pthread_mutex_unlock(&running_mut);
+
 
     return NULL;
 
@@ -369,10 +402,11 @@ void* aperiodicTask(void * aperiodicTask){
 int main(int argc, const char * argv[]) {
 	
     FILE *filePointer;	//file pointer that reads from given file
-	char filename[200];
-
+	
 	printf("start");
+    flagToTerminate = 0;
 /*
+    char filename[200];
 	if(argc > 0){
 		strcpy(filename, argv[1]);
 	}    
@@ -389,8 +423,6 @@ int main(int argc, const char * argv[]) {
 
     Task ** taskList;
 	int i;
- 
-	printf("start");
 
     taskList = getInput(filePointer);
 
@@ -431,7 +463,6 @@ int main(int argc, const char * argv[]) {
 			pthread_mutexattr_destroy(&my_mutex_attr);
 		*/
 		
-		waitFlag = numTasks;		//tasks are not ready
 		pthread_t threadID[numTasks];	//initialize the thread id array
 
 		//set mutex array to be pi mutex
@@ -445,14 +476,7 @@ int main(int argc, const char * argv[]) {
 			pthread_mutex_init(&mutexArray[mutexCount], &piMutexAttr);		//init mutex and set protocol to priority inheritance
 		}
 
-		
-        int e = 0;
-/*    
-		for(e=0; e<5; e++){
-            numTasksEvent[e] = 0;
-            readyTasksEvent[e] = 0;
-       	}
-*/
+		//trying to set main priority to 99
         //setpriority(PRIO_PROCESS, 0, 99);
         
 		//set up keyboard listen thread
@@ -482,17 +506,45 @@ int main(int argc, const char * argv[]) {
 			}
 			
 		}
-		printf("wait for tasks to be ready");
+		printf("waiting for tasks to be ready..");
 
 		//wait until all tasks have been created
         while(readyTasksCount != numTasks);		//busy loop until all threads are ready
 
-
-		
 		//broadcast that all threads have been created
-        pthread_cond_broadcast(&cond);		//broadcast signal to start when after busy loop exits
+        pthread_cond_broadcast(&cond);		//broadcast signal to start when busy loop exits
 
 		
+        //sleep until period ends so terminating signal is sent at the right time
+        if(period.tv_sec > 0){
+            period.tv_sec--;
+            nanosleep(&period, NULL);
+        }
+        
+        //-------- ---------- ---------- signaling threads to terminate ------- -------- -------- begins
+        printf("TERMINATE ALL THREADS SIGNAL SENT\n");
+        flagToTerminate = 1;
+        struct sigaction sigAction;
+        sigAction.sa_handler = catcher;
+        sigaction(SIGTERM, &sigAction, NULL);
+        alarm(1);
+        //-------- ---------- ---------- signaling threads to terminate ------- -------- -------- ends
+        
+        //busy loop until all running threads terminate
+        while(runningTasksCount != 0);
+        
+        //aaaand we're done here
+        printf("THE END\n");
+        
+        
+        
+        
+        //anything below this will be deleted later and is only here for now for copy/paste purposes
+        
+        
+        /*
+        
+        
         
         
         struct sigaction newAction, oldAction;
@@ -528,15 +580,9 @@ int main(int argc, const char * argv[]) {
 
 		//running = 1
 		//broadcast signal to end
-
-        //we're not gonna be using join so might as well delete this
         
-		//for(i = 0; i < numTasks; i++){
-		//	pthread_join(threadID[i], NULL);
-		//}
-        printf("THE END\n");
-
-        //periodicTask(taskList[0]);
+        
+         */
 
     }
     else{

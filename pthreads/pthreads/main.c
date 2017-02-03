@@ -36,39 +36,38 @@ void * func1(){
     int sig, err;
     sigset_t newmask, set;
     sigemptyset(&newmask);
+    sigaddset(&newmask, SIGTERM);
     sigaddset(&newmask, SIGALRM);
-    printf("Inside sig_func\n");
     
     int i = 0;
-    for(i=0; i < 999999999999100; i++){
+    for(i=0; i < 999999; i++){
         //pretendvar =
+        pthread_sigmask(SIG_UNBLOCK, &set, NULL );
+        printf("func1 is sleeping... \n");
+        if(nanosleep(&period, NULL) != 0){
+            printf("should handle termination then break");
+        }
+        printf("func1 woke up\n");
+        pthread_sigmask(SIG_BLOCK, &set, NULL );
+        
+        printf("it should never terminate between this... \n");
         nanosleep(&period, NULL);
-        /*if(pretendvar == EINTR || pretendvar == SIGALRM){
-            pthread_exit(NULL);
-            printf("i mean it went in your if statement?");
-        }*/
-        //what++;
-        //printf("ONE loop number: %d and what is: %d\n", i, what);
-        
-        //pthread_mutex_lock(&mutex1);
-        //while(what>50 && what<90){
-            what++;
-            //i++;
-            printf("ONE loop number: %d and what is: %d\n", i, what);
-        //}
-        //pthread_mutex_unlock(&mutex1);
+        printf("and this!\n");
+        what++;
+        printf("ONE loop number: %d and what is: %d\n", i, what);
         
         
-            printf("waiting for signal \n");
-            err= sigwait(&newmask, &sig);
-            if (err ||  sig != SIGALRM){
-                printf("expected signal not genearated \n");
-                abort();
-            }
-            else{
-                printf("Alarm generated : OK\n");
-            }
-        
+        /*
+         printf("waiting for signal \n");
+         err= sigwait(&newmask, &sig);
+         if (err ||  sig != SIGALRM){
+         printf("expected signal not genearated \n");
+         abort();
+         }
+         else{
+         printf("Alarm generated : OK\n");
+         }
+         */
     }
     return NULL;
 };
@@ -95,15 +94,21 @@ void * func2(){
 
 static void catcher(int signo){
     //switch (signo) {
-     //   case SIGTSTP:
-      //      printf("TSTP\n");
-        //    fflush(stdout);
-         //
-           // pthread_kill(one, 0);
-            //break;
+    //   case SIGTSTP:
+    //      printf("TSTP\n");
+    //    fflush(stdout);
+    //
+    // pthread_kill(one, 0);
+    //break;
     //}
     
-    printf("in the signal handler\n");
+    printf("in the signal handler... ");
+    if(signo == SIGTERM){
+        printf("the signal was SIGTERM \n");
+    }
+    else{
+        printf("the signal was NOT SIGTERM \n");
+    }
 }
 
 int main(int argc, const char * argv[]) {
@@ -136,7 +141,7 @@ int main(int argc, const char * argv[]) {
         printf("Error2\n");
     }
     
-
+    
     
     
     //pthread_join(one, NULL);
@@ -154,9 +159,10 @@ int main(int argc, const char * argv[]) {
     
     struct sigaction sigAction;
     sigAction.sa_handler = catcher;
-    sigaction(SIGALRM, &sigAction, NULL);
-    alarm(3);
-    setitt
+    sigaction(SIGTERM, &sigAction, NULL);
+    
+    alarm(1);
+    //setitt
     //pSigHandler(SIGTSTP);
     printf("after signal but before 2nd sleep\n");
     
