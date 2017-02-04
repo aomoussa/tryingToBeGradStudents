@@ -509,10 +509,10 @@ int main(int argc, const char * argv[]) {
 
 		
         //sleep until period ends so terminating signal is sent at the right time
-        if(period.tv_sec > 0){
-            period.tv_sec--;
+        //if(period.tv_sec > 0){
+         //   period.tv_sec--;
             nanosleep(&period, NULL);
-        }
+       // }
         
         //-------- ---------- ---------- signaling threads to terminate ------- -------- -------- begins
         printf("TERMINATE ALL THREADS SIGNAL SENT\n");
