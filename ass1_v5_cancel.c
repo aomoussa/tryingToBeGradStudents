@@ -138,13 +138,13 @@ Task * parseLine(char* line, Task * taskArray){
 }
 
 //function that gets the lines in the file for the number of tasks specified
-Task ** getInput(FILE * ptr){
+Task ** getInput(){
 
     char * input;
     size_t numOfBytes = 0;
     Task ** taskArray;
     
-    if(getline(&input, &numOfBytes, ptr)){	//get the first line
+    if(getline(&input, &numOfBytes, stdin)){	//get the first line
   
         numTasks = atoi(strtok(input," ")); 		//get the number of tasks
         totalTaskTime = atoi(strtok (NULL, " "));   //get the total task time      
@@ -154,7 +154,7 @@ Task ** getInput(FILE * ptr){
         //while there is still input, get the next line(s)
         int taskLineCount = 0;
         while(taskLineCount < numTasks){
-            if(getline(&input, &numOfBytes, ptr)){
+            if(getline(&input, &numOfBytes, stdin)){
                 taskArray[taskLineCount] = parseLine(input, taskArray[taskLineCount]); //call parse line to store the data into the struct
                 taskLineCount++;
             }
@@ -393,12 +393,12 @@ void* aperiodicTask(void * aperiodicTask){
 
 
 int main(int argc, const char * argv[]) {
-	
+/*
     FILE *filePointer;	//file pointer that reads from given file
 	
 	printf("start");
     flagToTerminate = 0;
-/*
+
     char filename[200];
 	if(argc > 0){
 		strcpy(filename, argv[1]);
@@ -407,19 +407,19 @@ int main(int argc, const char * argv[]) {
 		printf("Please enter a filename.\n");
 		return -1;
 	}
-*/
+
     filePointer = fopen("test2.txt", "r");
     if(filePointer == NULL){
         printf("couldn't open file");
         return -1;
     }
-
+*/
     Task ** taskList;
 	int i;
 
-    taskList = getInput(filePointer);
+    taskList = getInput();
 
-	fclose(filePointer);
+//	fclose(filePointer);
 
 	printf("tasks have been stored in an array\n");
 	printf(" total time %d\n", totalTaskTime);
