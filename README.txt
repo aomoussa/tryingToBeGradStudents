@@ -3,9 +3,9 @@ This program was created by Ahmed Moussa and Kendall Hickie.
 
 To run this program please make the Makefile. 
 Then pipline in the input. 
-	i.e. ./ass1_v5 < test.txt
+	i.e. ./a.out < test.txt
 
 
 Commands to Run Program -
 make
-./ass1_v5 < test.txt
+./a.out < test.txt
