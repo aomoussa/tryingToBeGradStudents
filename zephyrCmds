@@ -1,0 +1,6 @@
+export ZEPHYR_GCC_VARIANT=zephyr
+export ZEPHYR_SDK_INSTALL_DIR=/home/ahmed/Documents/
+cd zephyr-project
+source zephyr-env.sh
+cd ass2
+make BOARD=galileo
